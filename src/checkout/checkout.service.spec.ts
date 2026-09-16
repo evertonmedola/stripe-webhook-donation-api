@@ -67,12 +67,30 @@ describe('CheckoutService', () => {
     await expect(
       service.createSession({ productType: 'custom', amountCents: 100 }),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
   });
 
   it('rejects a custom amount above the maximum', async () => {
     await expect(
       service.createSession({ productType: 'custom', amountCents: 999_999_999 }),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it('fails closed (does not silently accept) when MIN_DONATION_CENTS/MAX_DONATION_CENTS config is missing', async () => {
+    config.get.mockImplementation((key: string) => {
+      const values: Record<string, string> = {
+        STRIPE_ALLOWED_PRICE_IDS: 'price_allowed_1,price_allowed_2',
+        MAX_DONATION_CENTS: '100000',
+        FRONTEND_ORIGIN: 'http://localhost:3000',
+      };
+      return values[key];
+    });
+
+    await expect(
+      service.createSession({ productType: 'custom', amountCents: 5000 }),
+    ).rejects.toThrow();
+    expect(stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
   });
 
   it('never forwards a client-supplied currency to Stripe', async () => {
