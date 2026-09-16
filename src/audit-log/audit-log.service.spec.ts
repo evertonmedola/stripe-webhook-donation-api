@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { AuditLogService } from './audit-log.service';
+import { AuditLogService, AuditLogEntry } from './audit-log.service';
 
 describe('AuditLogService', () => {
   let service: AuditLogService;
@@ -35,6 +35,16 @@ describe('AuditLogService', () => {
     dataSource.query.mockRejectedValue(new Error('db down'));
     await expect(
       service.record({ action: 'signature_invalid' }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('never throws when entry is malformed (null or undefined)', async () => {
+    await expect(
+      service.record(undefined as unknown as AuditLogEntry),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      service.record(null as unknown as AuditLogEntry),
     ).resolves.toBeUndefined();
   });
 });
