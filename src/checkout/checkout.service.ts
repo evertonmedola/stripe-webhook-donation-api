@@ -57,6 +57,10 @@ export class CheckoutService {
       return 0; // amount is authoritative in Stripe for a Price; not tracked locally beyond the order placeholder
     }
 
+    if (typeof dto.amountCents !== 'number' || !Number.isInteger(dto.amountCents)) {
+      throw new BadRequestException('amountCents must be an integer');
+    }
+
     const min = Number(this.config.get<string>('MIN_DONATION_CENTS'));
     const max = Number(this.config.get<string>('MAX_DONATION_CENTS'));
     if (Number.isNaN(min) || Number.isNaN(max)) {
