@@ -59,6 +59,9 @@ export class CheckoutService {
 
     const min = Number(this.config.get<string>('MIN_DONATION_CENTS'));
     const max = Number(this.config.get<string>('MAX_DONATION_CENTS'));
+    if (Number.isNaN(min) || Number.isNaN(max)) {
+      throw new Error('MIN_DONATION_CENTS/MAX_DONATION_CENTS misconfigured');
+    }
     if (dto.amountCents! < min || dto.amountCents! > max) {
       throw new BadRequestException(`amountCents must be between ${min} and ${max}`);
     }
