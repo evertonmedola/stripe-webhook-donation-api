@@ -4,6 +4,7 @@ import { BadRequestException } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 import { OrdersService } from '../orders/orders.service';
 import { STRIPE_CLIENT } from './stripe.provider';
+import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 
 describe('CheckoutService', () => {
   let service: CheckoutService;
@@ -73,6 +74,13 @@ describe('CheckoutService', () => {
   it('rejects a custom amount above the maximum', async () => {
     await expect(
       service.createSession({ productType: 'custom', amountCents: 999_999_999 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects undefined amountCents for custom product', async () => {
+    await expect(
+      service.createSession({ productType: 'custom' } as CreateCheckoutSessionDto),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
   });
