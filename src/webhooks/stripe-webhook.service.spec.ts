@@ -17,20 +17,32 @@ describe('StripeWebhookService', () => {
   let queryRunnerMock: {
     connect: jest.Mock; startTransaction: jest.Mock; commitTransaction: jest.Mock;
     rollbackTransaction: jest.Mock; release: jest.Mock; query: jest.Mock; manager: unknown;
+    isTransactionActive: boolean;
   };
   let dataSource: { createQueryRunner: jest.Mock };
   let auditLog: { record: jest.Mock };
   let stripeClient: Stripe;
 
   beforeEach(async () => {
+    // isTransactionActive mirrors TypeORM's real PostgresQueryRunner
+    // behavior: startTransaction() sets it true, commit/rollback set it
+    // false. safeRollback() in the service reads this flag to decide
+    // whether a second rollback attempt is safe to skip.
     queryRunnerMock = {
       connect: jest.fn(),
-      startTransaction: jest.fn(),
-      commitTransaction: jest.fn(),
-      rollbackTransaction: jest.fn(),
+      startTransaction: jest.fn().mockImplementation(async () => {
+        queryRunnerMock.isTransactionActive = true;
+      }),
+      commitTransaction: jest.fn().mockImplementation(async () => {
+        queryRunnerMock.isTransactionActive = false;
+      }),
+      rollbackTransaction: jest.fn().mockImplementation(async () => {
+        queryRunnerMock.isTransactionActive = false;
+      }),
       release: jest.fn(),
       query: jest.fn().mockResolvedValue([[], 1]),
       manager: {},
+      isTransactionActive: false,
     };
     dataSource = { createQueryRunner: jest.fn().mockReturnValue(queryRunnerMock) };
     auditLog = { record: jest.fn().mockResolvedValue(undefined) };
@@ -111,5 +123,62 @@ describe('StripeWebhookService', () => {
     expect(auditLog.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'processing_error', eventId: 'evt_4' }),
     );
+  });
+
+  it('releases the queryRunner and records a connection_error when connect() throws, without leaking the connection', async () => {
+    const connectError = new Error('pool exhausted');
+    queryRunnerMock.connect.mockRejectedValueOnce(connectError);
+    const payload = JSON.stringify({ id: 'evt_5', type: 'some.unhandled.type', data: { object: {} } });
+    const header = signPayload(payload);
+
+    await expect(service.handleRawEvent(Buffer.from(payload), header)).rejects.toThrow('pool exhausted');
+
+    // TypeORM's QueryRunner.release() is safe to call even when connect()
+    // never succeeded (it short-circuits via an internal isReleased flag and
+    // has no live connection to release), so the finally block calling
+    // release() unconditionally is correct and must still happen here to
+    // avoid leaking the queryRunner.
+    expect(queryRunnerMock.release).toHaveBeenCalled();
+    expect(queryRunnerMock.startTransaction).not.toHaveBeenCalled();
+    expect(queryRunnerMock.rollbackTransaction).not.toHaveBeenCalled();
+    expect(auditLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'connection_error', eventId: 'evt_5', reason: 'pool exhausted' }),
+    );
+  });
+
+  it('releases the queryRunner and records a connection_error when startTransaction() throws', async () => {
+    const startTxError = new Error('could not start transaction');
+    queryRunnerMock.startTransaction.mockRejectedValueOnce(startTxError);
+    const payload = JSON.stringify({ id: 'evt_6', type: 'some.unhandled.type', data: { object: {} } });
+    const header = signPayload(payload);
+
+    await expect(service.handleRawEvent(Buffer.from(payload), header)).rejects.toThrow(
+      'could not start transaction',
+    );
+
+    expect(queryRunnerMock.release).toHaveBeenCalled();
+    expect(queryRunnerMock.query).not.toHaveBeenCalled();
+    expect(auditLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'connection_error', eventId: 'evt_6' }),
+    );
+  });
+
+  it('does not let a second/invalid rollback attempt mask the original error when auditLog.record() throws after a rollback already happened', async () => {
+    queryRunnerMock.query.mockResolvedValueOnce([[], 0]); // duplicate: 0 rows
+    const auditError = new Error('audit sink unavailable');
+    auditLog.record.mockRejectedValueOnce(auditError); // first call: the 'duplicate' record throws
+
+    const payload = JSON.stringify({ id: 'evt_7', type: 'some.unhandled.type', data: { object: {} } });
+    const header = signPayload(payload);
+
+    await expect(service.handleRawEvent(Buffer.from(payload), header)).rejects.toThrow('audit sink unavailable');
+
+    // rollbackTransaction() was only actually invoked once (the legitimate
+    // duplicate-path rollback); the outer catch's safeRollback() saw
+    // isTransactionActive === false and skipped calling it again, so the
+    // original audit error propagated untouched instead of being masked by
+    // a TransactionNotStartedError from a second rollback attempt.
+    expect(queryRunnerMock.rollbackTransaction).toHaveBeenCalledTimes(1);
+    expect(queryRunnerMock.release).toHaveBeenCalled();
   });
 });

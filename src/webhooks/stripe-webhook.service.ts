@@ -48,10 +48,25 @@ export class StripeWebhookService {
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
 
+    // connect()/startTransaction() are now INSIDE the try/finally so that a
+    // failure in either one (DB pool exhaustion, connection refused, etc.)
+    // still runs queryRunner.release() below rather than leaking the
+    // connection, and still produces an audit trail entry for the failure.
     try {
+      try {
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+      } catch (err) {
+        await this.auditLog.record({
+          action: 'connection_error',
+          eventId: event.id,
+          eventType: event.type,
+          reason: (err as Error).message,
+        });
+        throw err;
+      }
+
       const insertResult = await queryRunner.query(
         `INSERT INTO processed_stripe_events (event_id, event_type, outcome)
          VALUES ($1, $2, 'processed') ON CONFLICT (event_id) DO NOTHING
@@ -91,7 +106,16 @@ export class StripeWebhookService {
       // code path where a handler failure leaves the idempotency row
       // committed on its own. A rolled-back event must NOT be recorded as
       // processed, so Stripe can safely retry delivery.
-      await queryRunner.rollbackTransaction();
+      //
+      // This catch also fires if connect()/startTransaction() failed above,
+      // or if auditLog.record() unexpectedly threw earlier in this try block
+      // (e.g. after the duplicate path already rolled back, or after the
+      // no-handler path is mid-commit). In both of those cases the
+      // transaction may already be inactive/rolled back, so we go through
+      // safeRollback() rather than calling rollbackTransaction() directly —
+      // a second/invalid rollback attempt must never throw and mask the
+      // real error here.
+      await this.safeRollback(queryRunner);
       await this.auditLog.record({
         action: 'processing_error',
         eventId: event.id,
@@ -101,6 +125,27 @@ export class StripeWebhookService {
       throw err;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  /**
+   * Rolls back the transaction only if one is actually active, and never
+   * throws. Guards against the double-rollback case: if a rollback already
+   * happened (e.g. the duplicate-event path) or a commit already happened,
+   * queryRunner.isTransactionActive is false and TypeORM's
+   * rollbackTransaction() would otherwise throw TransactionNotStartedError,
+   * which would mask whatever original error sent us into the catch block.
+   */
+  private async safeRollback(queryRunner: QueryRunner): Promise<void> {
+    if (!queryRunner.isTransactionActive) {
+      return;
+    }
+    try {
+      await queryRunner.rollbackTransaction();
+    } catch (rollbackErr) {
+      this.logger.error(
+        `rollbackTransaction() failed while handling a prior error: ${(rollbackErr as Error).message}`,
+      );
     }
   }
 }
