@@ -4,6 +4,19 @@ import { QueryRunner, Repository } from 'typeorm';
 import { OrderEntity, OrderStatus } from './entities/order.entity';
 import { isValidTransition } from './order-state-machine';
 
+/**
+ * Allowlist of column names that transitionAtomic's extraColumns is permitted to set.
+ * This list excludes id, status, and updated_at which are managed by the method itself.
+ */
+export const ALLOWED_EXTRA_COLUMNS = new Set([
+  'amount_cents',
+  'refunded_amount_cents',
+  'currency',
+  'stripe_session_id',
+  'stripe_payment_intent_id',
+  'donor_email',
+]);
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -53,6 +66,13 @@ export class OrdersService {
     }
 
     const extraKeys = Object.keys(extraColumns);
+
+    // Validate that all extraColumns keys are in the allowlist
+    for (const key of extraKeys) {
+      if (!ALLOWED_EXTRA_COLUMNS.has(key)) {
+        throw new Error(`transitionAtomic: extraColumns contains a disallowed column: ${key}`);
+      }
+    }
     const setClauses = ['status = $3', 'updated_at = now()', ...extraKeys.map((k, i) => `${k} = $${4 + i}`)];
     const params = [orderId, from, to, ...extraKeys.map((k) => extraColumns[k])];
 
