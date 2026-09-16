@@ -897,7 +897,7 @@ import { OrderEntity } from './entities/order.entity';
 import { OrdersService } from './orders.service';
 
 const TEST_DB_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://payment_user:payment_pass@localhost:5432/payment_validation';
+  process.env.TEST_DATABASE_URL ?? 'postgres://payment_user:payment_pass@localhost:5434/payment_validation';
 
 describe('OrdersService (integration)', () => {
   let dataSource: DataSource;
@@ -1995,7 +1995,7 @@ import { paymentFailedHandler } from './payment-failed.handler';
 import { chargeRefundedHandler } from './charge-refunded.handler';
 
 const TEST_DB_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://payment_user:payment_pass@localhost:5432/payment_validation';
+  process.env.TEST_DATABASE_URL ?? 'postgres://payment_user:payment_pass@localhost:5434/payment_validation';
 
 function fakeEvent(type: string, object: Record<string, unknown>): Stripe.Event {
   return { id: 'evt_x', type, data: { object } } as unknown as Stripe.Event;
