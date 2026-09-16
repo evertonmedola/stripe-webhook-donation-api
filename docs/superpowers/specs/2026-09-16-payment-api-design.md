@@ -103,10 +103,16 @@ status — apenas atualiza `refunded_amount_cents` e gera
 Toda transição é um `UPDATE` atômico com o estado de origem no `WHERE`:
 
 ```sql
-UPDATE orders SET status = 'paid', updated_at = now()
+UPDATE orders SET status = 'paid', donor_email = $2, updated_at = now()
 WHERE id = $1 AND status = 'pending';
 -- rowCount = 0 => transição inválida/já aplicada; log, não é erro fatal
 ```
+
+O handler `checkout-completed` extrai `session.customer_details.email` do
+evento Stripe e grava em `donor_email` no mesmo `UPDATE` que muda o status
+para `paid` — sem isso o `email_outbox` não tem destinatário para o e-mail
+de confirmação. `donor_email` fica `NULL` até essa transição (não é
+coletado em `POST /checkout/sessions`).
 
 `stripe_session_id` UNIQUE garante vínculo estrito 1:1 entre sessão Stripe
 e pedido interno. `processed_stripe_events.event_id` como PK garante
@@ -120,6 +126,9 @@ POST /checkout/sessions
     { productType: 'fixed' | 'custom', priceId?: string, amountCents?: number }
   - fixed: priceId deve estar em allowlist pré-cadastrada em config (não no body livre)
   - custom: amountCents deve ser inteiro, MIN_DONATION_CENTS <= x <= MAX_DONATION_CENTS
+  - validação cruzada no DTO via @ValidateIf (class-validator):
+    productType='fixed' exige priceId e rejeita amountCents presente;
+    productType='custom' exige amountCents e rejeita priceId presente
   - currency é sempre fixado no backend (nunca aceito do client)
   - cria order (status='pending') ANTES de chamar Stripe
   - chama stripe.checkout.sessions.create(...), atualiza order com stripe_session_id
@@ -167,6 +176,8 @@ POST /webhooks/stripe
      -> 0 rows afetadas: ROLLBACK, outcome='duplicate', responde 200
 4.   Handler do event.type (checkout-completed | payment-failed | charge-refunded):
      UPDATE atômico em orders (WHERE status = <esperado>)
+     - checkout-completed grava também donor_email a partir de
+       session.customer_details.email no mesmo UPDATE
      -> rowCount=0: não é erro, apenas log 'invalid_transition_rejected' dentro da tx
 5.   Se transição para 'paid': INSERT email_outbox (status='pending')
 6. COMMIT
