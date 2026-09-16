@@ -99,4 +99,32 @@ describe('OrdersService (integration)', () => {
     const [row] = await dataSource.query('SELECT donor_email FROM orders WHERE id = $1', [order.id]);
     expect(row.donor_email).toBe('donor@example.com');
   });
+
+  it('rejects disallowed extraColumns keys with a clear error and no database changes', async () => {
+    const order = await service.createPendingOrder({
+      amountCents: 5000,
+      currency: 'brl',
+      stripeSessionId: 'cs_test_4',
+    });
+
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    // Attempt to transition with a disallowed column key
+    const error = await service.transitionAtomic(queryRunner, order.id, 'pending', 'paid', {
+      some_malicious_column: 'x',
+    }).catch((e) => e);
+
+    await queryRunner.commitTransaction();
+    await queryRunner.release();
+
+    // Verify the error was thrown with the expected message
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toBe('transitionAtomic: extraColumns contains a disallowed column: some_malicious_column');
+
+    // Verify the order's status is unchanged (no SQL was executed)
+    const status = await service.getStatus(order.id);
+    expect(status).toBe('pending');
+  });
 });
