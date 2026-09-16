@@ -146,4 +146,80 @@ describe('webhook handlers (integration)', () => {
     expect(row.status).toBe('paid');
     expect(row.refunded_amount_cents).toBe(2000);
   });
+
+  it('chargeRefundedHandler with partial amount does NOT update refunded_amount_cents when order is not paid', async () => {
+    const orderId = await insertOrder({ status: 'refunded', amountCents: 5000, sessionId: 'cs_refund_not_paid' });
+    await dataSource.query(
+      'UPDATE orders SET stripe_payment_intent_id = $1, refunded_amount_cents = $2 WHERE id = $3',
+      ['pi_3', 5000, orderId],
+    );
+    const qr = dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+
+    const event = fakeEvent('charge.refunded', { payment_intent: 'pi_3', amount_refunded: 2000 });
+    await chargeRefundedHandler(qr, event);
+    await qr.commitTransaction();
+    await qr.release();
+
+    const [row] = await dataSource.query(
+      'SELECT status, refunded_amount_cents FROM orders WHERE id = $1',
+      [orderId],
+    );
+    // Order was already refunded (not 'paid'), so the UPDATE's status guard
+    // must prevent the partial-refund branch from touching this row at all.
+    expect(row.status).toBe('refunded');
+    expect(row.refunded_amount_cents).toBe(5000);
+  });
+
+  it('chargeRefundedHandler write is monotonic: a smaller amount_refunded delivered after a larger one does not decrease refunded_amount_cents', async () => {
+    const orderId = await insertOrder({ status: 'paid', amountCents: 10000, sessionId: 'cs_refund_monotonic' });
+    await dataSource.query('UPDATE orders SET stripe_payment_intent_id = $1 WHERE id = $2', ['pi_4', orderId]);
+
+    // First delivery: a larger refunded amount is recorded.
+    const qr1 = dataSource.createQueryRunner();
+    await qr1.connect();
+    await qr1.startTransaction();
+    await chargeRefundedHandler(qr1, fakeEvent('charge.refunded', { payment_intent: 'pi_4', amount_refunded: 4000 }));
+    await qr1.commitTransaction();
+    await qr1.release();
+
+    // Second delivery: an out-of-order, smaller snapshot arrives later.
+    const qr2 = dataSource.createQueryRunner();
+    await qr2.connect();
+    await qr2.startTransaction();
+    await chargeRefundedHandler(qr2, fakeEvent('charge.refunded', { payment_intent: 'pi_4', amount_refunded: 1000 }));
+    await qr2.commitTransaction();
+    await qr2.release();
+
+    const [row] = await dataSource.query(
+      'SELECT status, refunded_amount_cents FROM orders WHERE id = $1',
+      [orderId],
+    );
+    expect(row.status).toBe('paid');
+    expect(row.refunded_amount_cents).toBe(4000);
+  });
+
+  it('checkoutCompletedHandler does NOT insert an email_outbox row when the order is not pending', async () => {
+    const orderId = await insertOrder({ status: 'failed', sessionId: 'cs_already_failed' });
+    const qr = dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+
+    const event = fakeEvent('checkout.session.completed', {
+      id: 'cs_already_failed',
+      amount_total: 5000,
+      payment_intent: 'pi_already_failed',
+      customer_details: { email: 'donor3@example.com' },
+    });
+    await checkoutCompletedHandler(qr, event);
+    await qr.commitTransaction();
+    await qr.release();
+
+    const [row] = await dataSource.query('SELECT status FROM orders WHERE id = $1', [orderId]);
+    expect(row.status).toBe('failed');
+
+    const outboxRows = await dataSource.query('SELECT * FROM email_outbox WHERE order_id = $1', [orderId]);
+    expect(outboxRows).toHaveLength(0);
+  });
 });

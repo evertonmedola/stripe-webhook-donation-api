@@ -1,4 +1,4 @@
-import { Controller, Headers, HttpCode, Post, Req } from '@nestjs/common';
+import { BadRequestException, Controller, Headers, HttpCode, Post, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
@@ -15,7 +15,14 @@ export class StripeWebhookController {
     @Req() req: RawBodyRequest<Request>,
     @Headers('stripe-signature') signature: string,
   ): Promise<{ received: true }> {
-    await this.webhookService.handleRawEvent(req.rawBody!, signature);
+    // Nest's raw-body parser only populates req.rawBody for content-types it
+    // claims. A caller POSTing with an unclaimed content-type leaves it
+    // undefined, in which case it must never be passed on to
+    // stripe.webhooks.constructEvent() (which requires a Buffer).
+    if (!req.rawBody) {
+      throw new BadRequestException('Missing request body');
+    }
+    await this.webhookService.handleRawEvent(req.rawBody, signature);
     return { received: true };
   }
 }

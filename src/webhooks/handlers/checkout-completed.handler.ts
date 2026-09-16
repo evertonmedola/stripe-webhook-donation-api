@@ -14,17 +14,39 @@ export const checkoutCompletedHandler: EventHandler = async (queryRunner: QueryR
     return { orderId: null };
   }
 
-  await queryRunner.query(
+  const updateResult = await queryRunner.query(
     `UPDATE orders
      SET status = 'paid', donor_email = $2, stripe_payment_intent_id = $3, amount_cents = $4, updated_at = now()
      WHERE id = $1 AND status = 'pending'`,
     [orderRow.id, donorEmail, paymentIntentId, chargedAmountCents],
   );
 
-  await queryRunner.query(
-    `INSERT INTO email_outbox (order_id, status) VALUES ($1, 'pending')`,
-    [orderRow.id],
-  );
+  // Only queue the payment-confirmation email when the UPDATE actually
+  // transitioned this order (pending -> paid). Stripe does not guarantee
+  // delivery order across event types for the same session (e.g.
+  // checkout.session.expired could be delivered after this event), so the
+  // order may already be in 'failed' or 'refunded' by the time this runs —
+  // in that case the WHERE matches 0 rows and queuing a confirmation email
+  // would mislead the donor about the true state of their payment.
+  if (extractUpdatedRowCount(updateResult) === 1) {
+    await queryRunner.query(
+      `INSERT INTO email_outbox (order_id, status) VALUES ($1, 'pending')`,
+      [orderRow.id],
+    );
+  }
 
   return { orderId: orderRow.id as string };
 };
+
+/**
+ * TypeORM's pg driver QueryRunner.query() for an UPDATE statement returns an
+ * array `[rows, rowCount]` where `rows` is `undefined` (no RETURNING clause)
+ * and `rowCount` is the number of rows affected — same shape/behavior as
+ * orders.service.ts's transitionAtomic helper of the same name.
+ */
+function extractUpdatedRowCount(result: unknown): number {
+  if (Array.isArray(result) && typeof result[1] === 'number') {
+    return result[1];
+  }
+  return 0;
+}
