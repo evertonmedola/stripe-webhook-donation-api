@@ -19,4 +19,8 @@ describe('isValidTransition', () => {
   ] as const)('rejects %s -> %s', (from, to) => {
     expect(isValidTransition(from, to)).toBe(false);
   });
+
+  it('returns false for unknown status (defensive behavior)', () => {
+    expect(isValidTransition('bogus' as unknown as any, 'paid')).toBe(false);
+  });
 });
