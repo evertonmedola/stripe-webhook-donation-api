@@ -2038,6 +2038,7 @@ describe('webhook handlers (integration)', () => {
     const event = fakeEvent('checkout.session.completed', {
       id: 'cs_completed',
       amount_total: 5000,
+      payment_intent: 'pi_completed',
       customer_details: { email: 'donor@example.com' },
     });
     const result = await checkoutCompletedHandler(qr, event);
@@ -2045,9 +2046,33 @@ describe('webhook handlers (integration)', () => {
     await qr.release();
 
     expect(result.orderId).toBe(orderId);
-    const [row] = await dataSource.query('SELECT status, donor_email FROM orders WHERE id = $1', [orderId]);
+    const [row] = await dataSource.query(
+      'SELECT status, donor_email, stripe_payment_intent_id FROM orders WHERE id = $1',
+      [orderId],
+    );
     expect(row.status).toBe('paid');
     expect(row.donor_email).toBe('donor@example.com');
+    expect(row.stripe_payment_intent_id).toBe('pi_completed');
+  });
+
+  it('checkoutCompletedHandler backfills amount_cents from session.amount_total, closing the fixed-price amount_cents=0 gap', async () => {
+    const orderId = await insertOrder({ amountCents: 0, sessionId: 'cs_fixed_price' });
+    const qr = dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+
+    const event = fakeEvent('checkout.session.completed', {
+      id: 'cs_fixed_price',
+      amount_total: 3500,
+      payment_intent: 'pi_fixed_price',
+      customer_details: { email: 'donor2@example.com' },
+    });
+    await checkoutCompletedHandler(qr, event);
+    await qr.commitTransaction();
+    await qr.release();
+
+    const [row] = await dataSource.query('SELECT amount_cents FROM orders WHERE id = $1', [orderId]);
+    expect(row.amount_cents).toBe(3500);
   });
 
   it('paymentFailedHandler transitions pending -> failed', async () => {
@@ -2122,6 +2147,9 @@ import { EventHandler } from '../stripe-webhook.service';
 export const checkoutCompletedHandler: EventHandler = async (queryRunner: QueryRunner, event: Stripe.Event) => {
   const session = event.data.object as Stripe.Checkout.Session;
   const donorEmail = session.customer_details?.email ?? null;
+  const paymentIntentId =
+    typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id ?? null;
+  const chargedAmountCents = session.amount_total ?? 0;
 
   const [orderRow] = await queryRunner.query(`SELECT id FROM orders WHERE stripe_session_id = $1`, [session.id]);
   if (!orderRow) {
@@ -2130,9 +2158,9 @@ export const checkoutCompletedHandler: EventHandler = async (queryRunner: QueryR
 
   await queryRunner.query(
     `UPDATE orders
-     SET status = 'paid', donor_email = $2, updated_at = now()
+     SET status = 'paid', donor_email = $2, stripe_payment_intent_id = $3, amount_cents = $4, updated_at = now()
      WHERE id = $1 AND status = 'pending'`,
-    [orderRow.id, donorEmail],
+    [orderRow.id, donorEmail, paymentIntentId, chargedAmountCents],
   );
 
   await queryRunner.query(
@@ -2143,6 +2171,8 @@ export const checkoutCompletedHandler: EventHandler = async (queryRunner: QueryR
   return { orderId: orderRow.id as string };
 };
 ```
+
+**Checkpoint 2 ruling (see security checkpoint below, resolved here rather than left open):** `amount_cents` is now always overwritten from Stripe's authoritative `session.amount_total` at the moment an order transitions to `paid`, for BOTH `fixed` and `custom` orders — not just backfilled for the `fixed` case. This closes the gap where a `fixed`-price order's `amount_cents=0` placeholder (set at checkout-session-creation time, per Task 9) would have made `chargeRefundedHandler`'s `isFullRefund = charge.amount_refunded >= orders.amount_cents` comparison trivially true for ANY refund amount (since any amount >= 0), misclassifying a partial refund as a full refund and incorrectly transitioning the order to `refunded`. By the time a refund can occur, the order is already `paid` with the real charged amount recorded, so the comparison in `chargeRefundedHandler` is now accurate for all orders regardless of pricing mode.
 
 - [ ] **Step 4: Write `src/webhooks/handlers/payment-failed.handler.ts`**
 
@@ -2243,18 +2273,7 @@ export class WebhooksModule implements OnModuleInit {
 }
 ```
 
-- [ ] **Step 8: Also persist `stripe_payment_intent_id` when `checkout.session.completed` fires** — modify `src/webhooks/handlers/checkout-completed.handler.ts`'s `UPDATE` to include it:
-
-```typescript
-  await queryRunner.query(
-    `UPDATE orders
-     SET status = 'paid', donor_email = $2, stripe_payment_intent_id = $3, updated_at = now()
-     WHERE id = $1 AND status = 'pending'`,
-    [orderRow.id, donorEmail, typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id ?? null],
-  );
-```
-
-Re-run: `npx jest webhook-handlers.spec.ts` — Expected: still PASS (the existing assertions don't check `stripe_payment_intent_id` directly but rely on it being set for the refund tests' manual `UPDATE`, which remains compatible).
+- [ ] **Step 8: (superseded)** `stripe_payment_intent_id` and `amount_cents` are already persisted by `checkoutCompletedHandler` in Step 3 above (both were added there directly per the Checkpoint 2 ruling) — no separate step needed. Just re-run `npx jest webhook-handlers.spec.ts` to confirm the Step 1 test (updated below to assert `amount_cents`) passes.
 
 - [ ] **Step 9: Commit**
 
