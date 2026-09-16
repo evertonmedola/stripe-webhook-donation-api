@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: payment_pass
       POSTGRES_DB: payment_validation
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 volumes:

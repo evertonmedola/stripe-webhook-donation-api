@@ -8,7 +8,9 @@
     "start:dev": "nest start --watch",
     "test": "jest",
     "test:watch": "jest --watch",
-    "typeorm": "typeorm-ts-node-commonjs"
+    "typeorm": "typeorm-ts-node-commonjs",
+    "typeorm:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "typeorm:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",
