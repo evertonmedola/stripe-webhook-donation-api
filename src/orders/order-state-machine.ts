@@ -8,5 +8,5 @@ export const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 };
 
 export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
-  return ALLOWED_TRANSITIONS[from].includes(to);
+  return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
 }
