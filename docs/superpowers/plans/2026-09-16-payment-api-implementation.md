@@ -2785,7 +2785,20 @@ function onCustomDonationSubmit(event) {
   const amountCents = Math.round(amountReais * 100);
   startCheckout({ productType: 'custom', amountCents });
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const fixedButton = document.getElementById('fixed-donation-button');
+  if (fixedButton) {
+    fixedButton.addEventListener('click', () => onFixedDonationClick('price_allowed_1'));
+  }
+  const customForm = document.getElementById('custom-form');
+  if (customForm) {
+    customForm.addEventListener('submit', onCustomDonationSubmit);
+  }
+});
 ```
+
+**Checkpoint 5 note (resolved here rather than left for Task 19 to discover the hard way):** helmet's default CSP (`script-src 'self'`, no `'unsafe-inline'`) blocks BOTH inline `<script>` blocks AND inline event-handler attributes (`onclick="..."`). The event-binding logic above moved from an inline `<script>` tag and an `onclick` attribute (both CSP violations under `main.ts`'s unmodified `helmet()` config from Task 17) into `checkout.js` itself via `addEventListener` on `DOMContentLoaded`, matching the already-CSP-safe pattern `status-poll.js` (Step 2 below) already uses. `index.html` (Step 3) no longer has an inline `<script>` block or an `onclick` attribute — see the updated markup below.
 
 - [ ] **Step 2: Write `public/status-poll.js`**
 
@@ -2845,7 +2858,7 @@ document.addEventListener('DOMContentLoaded', () => {
   <main>
     <h1>Apoie este projeto</h1>
     <section>
-      <button onclick="onFixedDonationClick('price_allowed_1')">Doar valor fixo</button>
+      <button id="fixed-donation-button">Doar valor fixo</button>
     </section>
     <section>
       <form id="custom-form">
@@ -2856,9 +2869,6 @@ document.addEventListener('DOMContentLoaded', () => {
     </section>
   </main>
   <script src="/checkout.js"></script>
-  <script>
-    document.getElementById('custom-form').addEventListener('submit', onCustomDonationSubmit);
-  </script>
 </body>
 </html>
 ```
