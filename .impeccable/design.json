@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-18T00:00:00Z",
+  "title": "Design System: Catraca Financeira",
+  "extensions": {
+    "colorMeta": {
+      "gunmetal-bg": { "role": "primary", "displayName": "Gunmetal", "canonical": "#34383d", "tonalRamp": ["#121315", "#1c1e21", "#282c30", "#34383d", "#3d4147", "#5b6067", "#8a8f95", "#b3b8bd"] },
+      "brass": { "role": "primary", "displayName": "Dulled Brass", "canonical": "#b8874f", "tonalRamp": ["#3a2c1a", "#5a4527", "#7a5f3f", "#96713f", "#b8874f", "#d9ab6e", "#e8c896", "#f5e4c8"] },
+      "amber": { "role": "primary", "displayName": "Live Amber", "canonical": "#e2a23c", "tonalRamp": ["#4a3410", "#6e4e18", "#96692a", "#c1862f", "#e2a23c", "#f0b45a", "#f6cd8c", "#fbe6c2"] },
+      "panel": { "role": "neutral", "displayName": "Recessed Panel", "canonical": "#202226", "tonalRamp": ["#121315", "#1a1c1f", "#202226", "#2a2d31", "#34383d", "#46494f", "#5b6067", "#b3b8bd"] },
+      "error": { "role": "state", "displayName": "Failed-Payment Red", "canonical": "#d1495b", "tonalRamp": ["#3a1015", "#5c1a22", "#822631", "#ab3346", "#d1495b", "#e07686", "#ecA0ac", "#f6d2d8"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Big Shoulders Display", "purpose": "h1 page/status headings only, uppercase, condensed industrial character." },
+      "body": { "displayName": "IBM Plex Sans", "purpose": "Subtitle copy, status messages, labels, buttons, controls." },
+      "data": { "displayName": "Space Mono", "purpose": "Counter digits, currency prefix, amount input — digits/currency exclusively, never prose." }
+    },
+    "shadows": [
+      { "name": "panel-shadow", "value": "0 1px 0 rgba(255,255,255,0.06) inset, 0 3px 6px rgba(0,0,0,0.45)", "purpose": "The counter housing's recessed brushed-metal shadow. Not used elsewhere." }
+    ],
+    "motion": [
+      { "name": "digit-tick", "value": "0.22s ease, scaleY 1->0.72->1 with amber-strong flash mid-frame", "purpose": "Single digit flip when a live custom-amount input changes that digit." },
+      { "name": "digit-confirm", "value": "0.5s ease, scaleY 1->0.8->1 with color settling to amber-strong", "purpose": "All counter digits click together in sync, applied once via .counter.is-confirmed at payment confirmation." },
+      { "name": "spin", "value": "0.7s linear infinite rotate(360deg)", "purpose": "Border-based button loading spinner, amber accent ring." }
+    ],
+    "breakpoints": [
+      { "name": "counter-compact", "value": "380px", "purpose": "Only rescales counter padding and digit/currency font sizes; never restructures page layout." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Mechanical Counter",
+      "kind": "custom",
+      "refersTo": "counter",
+      "description": "Signature full-width digit-wheel readout. Opens every page before any copy; the only card-like object in the system.",
+      "html": "<div class=\"ds-counter\" role=\"status\" aria-label=\"Valor da doação\"><span class=\"ds-counter-currency\">R$</span><div class=\"ds-counter-digits\"><span class=\"ds-digit\">0</span><span class=\"ds-digit\">2</span><span class=\"ds-digit-sep\">0</span><span class=\"ds-digit-sep\">,</span><span class=\"ds-digit\">0</span><span class=\"ds-digit\">0</span></div><span class=\"ds-rivet ds-rivet-tl\" aria-hidden=\"true\"></span><span class=\"ds-rivet ds-rivet-tr\" aria-hidden=\"true\"></span><span class=\"ds-rivet ds-rivet-bl\" aria-hidden=\"true\"></span><span class=\"ds-rivet ds-rivet-br\" aria-hidden=\"true\"></span></div>",
+      "css": ".ds-counter { display: flex; align-items: stretch; justify-content: center; gap: 0.75rem; width: 100%; padding: 2rem 1.5rem; background-image: linear-gradient(155deg, var(--metal-highlight-soft, #46494f) 0%, var(--panel, #202226) 38%, var(--panel-shadow, #121315) 100%); border-radius: 6px; border: 1px solid var(--brass-dim, #7a5f3f); box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 3px 6px rgba(0,0,0,0.45); position: relative; } .ds-rivet { content: ''; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--metal-highlight, #5b6067) 0%, var(--brass-dim, #7a5f3f) 60%, #000 100%); box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset; } .ds-rivet-tl { top: 9px; left: 9px; } .ds-rivet-tr { top: 9px; right: 9px; } .ds-rivet-bl { bottom: 9px; left: 9px; } .ds-rivet-br { bottom: 9px; right: 9px; } .ds-counter-currency { display: flex; align-items: center; font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--brass-light, #d9ab6e); padding-right: 0.75rem; border-right: 1px solid var(--brass-dim, #7a5f3f); } .ds-counter-digits { display: flex; align-items: center; gap: 0.2rem; font-family: 'Space Mono', monospace; font-variant-numeric: tabular-nums; font-size: 2.75rem; font-weight: 700; letter-spacing: -0.02em; } .ds-digit { display: inline-flex; align-items: center; justify-content: center; width: 1ch; min-width: 0.85em; padding: 0.1em 0.05em; background: rgba(0,0,0,0.35); border-radius: 3px; color: var(--text, #eef0f0); transition: color 0.12s ease; } .ds-digit-sep { color: var(--text-muted, #b3b8bd); padding: 0 0.05em; } .ds-counter.is-ticking .ds-digit { animation: ds-digit-tick 0.22s ease; } .ds-counter.is-confirmed .ds-digit { animation: ds-digit-confirm 0.5s ease; color: var(--amber-strong, #f0b45a); } .ds-counter.is-failed .ds-digit { color: var(--error, #d1495b); } @keyframes ds-digit-tick { 0% { transform: scaleY(1); } 40% { transform: scaleY(0.72); color: var(--amber-strong, #f0b45a); } 100% { transform: scaleY(1); } } @keyframes ds-digit-confirm { 0% { color: var(--text, #eef0f0); } 35% { color: var(--amber-strong, #f0b45a); transform: scaleY(0.8); } 100% { color: var(--amber-strong, #f0b45a); transform: scaleY(1); } }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Transparent brass-outlined button at rest; amber fill on hover/focus. Loading state swaps label for a spinner.",
+      "html": "<button class=\"ds-btn-primary\">Confirmar doação de R$ 20,00</button>",
+      "css": ".ds-btn-primary { width: 100%; padding: 0.75rem 1rem; border: 1.5px solid var(--brass, #b8874f); border-radius: 6px; background: transparent; color: var(--brass-light, #d9ab6e); font-family: 'IBM Plex Sans', sans-serif; font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.05s ease; } .ds-btn-primary:hover, .ds-btn-primary:focus-visible { background: var(--amber, #e2a23c); border-color: var(--amber, #e2a23c); color: #201703; outline: none; box-shadow: 0 0 0 3px rgba(226,162,60,0.3); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { border-color: var(--metal-highlight-soft, #46494f); color: var(--text-muted, #b3b8bd); cursor: not-allowed; }"
+    },
+    {
+      "name": "Primary Button — Hover",
+      "kind": "button",
+      "refersTo": "button-primary-hover",
+      "description": "Amber-filled, dark-text hover/focus/active state of the primary button — the only place amber fills decoratively, and only because it is live interaction.",
+      "html": "<button class=\"ds-btn-primary ds-btn-primary--hover\">Confirmar doação de R$ 20,00</button>",
+      "css": ".ds-btn-primary--hover { background: var(--amber, #e2a23c); border: 1.5px solid var(--amber, #e2a23c); color: #201703; border-radius: 6px; padding: 0.75rem 1rem; font-family: 'IBM Plex Sans', sans-serif; font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }"
+    },
+    {
+      "name": "Amount Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Custom-amount field with fused currency prefix, dark panel background, and amber focus ring.",
+      "html": "<div class=\"ds-amount-field\"><span class=\"ds-amount-prefix\">R$</span><input type=\"number\" class=\"ds-input\" min=\"5\" step=\"0.01\" placeholder=\"0,00\" /></div>",
+      "css": ".ds-amount-field { display: flex; align-items: stretch; } .ds-amount-prefix { display: flex; align-items: center; padding: 0 0.75rem; border: 1px solid var(--brass-dim, #7a5f3f); border-right: none; border-radius: 6px 0 0 6px; background: var(--panel, #202226); color: var(--brass-light, #d9ab6e); font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.95rem; } .ds-input { width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--brass-dim, #7a5f3f); border-radius: 0 6px 6px 0; font-family: 'Space Mono', monospace; font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--text, #eef0f0); background: var(--panel, #202226); transition: border-color 0.15s ease, box-shadow 0.15s ease; } .ds-input:focus-visible { outline: none; border-color: var(--amber, #e2a23c); box-shadow: 0 0 0 3px rgba(226,162,60,0.22); }"
+    },
+    {
+      "name": "Footer Credit",
+      "kind": "custom",
+      "refersTo": "footer-credit",
+      "description": "Durable PRODUCT.md brand commitment: muted at rest, brass-to-amber link on hover/focus, present identically on all three pages.",
+      "html": "<footer class=\"ds-credit\"><a href=\"https://github.com/evertonmedola\" target=\"_blank\" rel=\"noopener\">Desenvolvido por Everton Medola</a></footer>",
+      "css": ".ds-credit { margin-top: 2.5rem; font-size: 0.75rem; color: var(--text-muted, #b3b8bd); text-align: center; } .ds-credit a { color: var(--brass-light, #d9ab6e); text-decoration: none; border-bottom: 1px solid transparent; transition: color 0.15s ease, border-color 0.15s ease; } .ds-credit a:hover, .ds-credit a:focus-visible { color: var(--amber, #e2a23c); border-color: var(--amber, #e2a23c); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Mechanical Tally-Counter",
+    "overview": "The donation amount is not displayed on a card — it is counted, on a physical instrument. The whole surface is built around a brushed-metal digit-wheel readout (.counter) that owns the first viewport before any copy loads, and every other element (buttons, inputs, dividers) is styled as hardware attached to that instrument: brass fittings, rivets, gunmetal housing. This is a Persuade-mode donation surface deliberately built as an industrial payment instrument rather than a SaaS landing page, honoring the product brief's explicit refusal of the purple-blue-gradient / rounded-icon-tile / cards-in-cards default.\n\nThe palette stays cold and mechanical: gunmetal steel-gray structure and dulled brass fittings at rest, with warm amber held back exclusively for actionable or live states (hover, focus, active, loading, payment-confirmed). Nothing decorative is amber. Typography splits roles by material logic, not fashion: a condensed industrial display face for headings, a neutral humanist sans for prose and controls, and a monospace exclusively for digits and currency — the one 'technical costume' this world earns, because the counter is a measuring instrument, not an accent.\n\nTwo rejected devices are worth naming because the build actively removed them during finish review: a zero-blur hard-offset ('neobrutalist') shadow on the counter, rejected in favor of a soft ambient shadow this steel/brass world never earned the right to wear; and a Unicode arrow glyph (&larr;) on the cancel-page back-link, rejected because back-links communicate through brass-to-amber underline color shift alone, never a glyph standing in for an icon.",
+    "keyCharacteristics": [
+      "A full-width mechanical counter housing is the signature object and the only \"card\" in the system — no nested cards, no rounded icon tiles.",
+      "Amber is reserved strictly for actionable/live/confirmation states; it never fills decoratively.",
+      "Space Mono is reserved strictly for digits and currency figures; it is never used for prose, labels, or dividers.",
+      "Two named digit animations (digit-tick, digit-confirm) are the system's only motion vocabulary.",
+      "Single-column, mobile-first, capped at 440px, with one narrow-viewport step that only rescales the counter."
+    ],
+    "rules": [
+      { "name": "The Amber-Is-Verb Rule", "body": "Amber only ever marks something happening or something the visitor can act on right now (hover, focus, active, loading, confirmed). If a use of amber isn't tied to an interaction or a live state, it doesn't belong.", "section": "colors" },
+      { "name": "The Monospace-Is-Measurement Rule", "body": "Space Mono renders only digits and currency figures (the counter, the amount input, the currency prefix). It is never used for prose, labels, or dividers — a divider label was moved off Space Mono during finish review specifically because 'monospace as a costume for technical' is a rejected pattern here.", "section": "typography" },
+      { "name": "The Earned-Shadow Rule", "body": "Only the counter housing carries a shadow, and it is soft/ambient, never a zero-blur hard offset. A hard-offset 'neobrutalist' shadow was explicitly rejected during finish review as a costume this gunmetal/brass world never earned.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep amber exclusive to actionable/live states (hover, focus, active, loading, confirmed digit-click) — never decorative fill.",
+      "Do render every amount and digit in Space Mono tabular-nums; keep every other string in IBM Plex Sans or Big Shoulders Display.",
+      "Do let the counter be the only card-like object in the system; new surfaces extend it rather than introducing a second container pattern.",
+      "Do use the soft ambient panel shadow only on the counter housing, never elsewhere."
+    ],
+    "donts": [
+      "Don't use a zero-blur hard-offset (\"neobrutalist\") shadow anywhere in this world — it was explicitly rejected during finish review as a costume this steel/brass identity never earned.",
+      "Don't stand in a Unicode glyph (e.g. an arrow) for an icon; the back-link and any future navigational element communicate through color/underline shift alone.",
+      "Don't introduce kicker/eyebrow labels above headings; none exist in the shipped build and none should be added.",
+      "Don't use Space Mono for prose, labels, or dividers — it is reserved for digits and currency only."
+    ]
+  }
+}

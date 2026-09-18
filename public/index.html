@@ -1,25 +1,82 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Catraca Financeira</title>
-  <link rel="stylesheet" href="/style.css" />
-</head>
-<body>
-  <main>
-    <h1>Apoie este projeto</h1>
-    <section>
-      <button id="fixed-donation-button">Doar valor fixo</button>
-    </section>
-    <section>
-      <form id="custom-form">
-        <label for="custom-amount">Outro valor (R$)</label>
-        <input type="number" id="custom-amount" min="5" step="0.01" required />
-        <button type="submit">Doar</button>
-      </form>
-    </section>
-  </main>
-  <script src="/checkout.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Catraca Financeira</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <div
+        class="counter"
+        id="amount-counter"
+        role="status"
+        aria-label="Valor da doação"
+      >
+        <span class="counter-currency">R$</span>
+        <div class="counter-digits" id="counter-digits">
+          <span class="digit">0</span><span class="digit">2</span
+          ><span class="digit-sep">0</span><span class="digit-sep">,</span
+          ><span class="digit">0</span><span class="digit">0</span>
+        </div>
+        <span class="rivet-bl" aria-hidden="true"></span>
+        <span class="rivet-br" aria-hidden="true"></span>
+      </div>
+
+      <h1>Apoie este projeto</h1>
+      <p class="subtitle">
+        Cada doação passa pelo mesmo fluxo de pagamento auditado que processaria
+        uma transação real: assinatura verificada, estado idempotente, sem
+        atalhos.
+      </p>
+
+      <div class="actions">
+        <section>
+          <button id="fixed-donation-button" type="button">
+            Confirmar doação de R$ 20,00
+          </button>
+          <p id="fixed-donation-message" class="form-message" role="alert"></p>
+        </section>
+
+        <div class="divider"><span>ou ajuste o valor</span></div>
+
+        <section>
+          <form id="custom-form" novalidate>
+            <label for="custom-amount">Valor personalizado</label>
+            <div class="amount-field">
+              <span class="prefix">R$</span>
+              <input
+                type="number"
+                id="custom-amount"
+                name="custom-amount"
+                min="5"
+                step="0.01"
+                placeholder="0,00"
+                required
+              />
+            </div>
+            <button type="submit" class="btn-spaced">
+              Doar valor personalizado
+            </button>
+            <p
+              id="custom-donation-message"
+              class="form-message"
+              role="alert"
+            ></p>
+          </form>
+        </section>
+      </div>
+
+      <footer class="credit">
+        <a
+          href="https://github.com/evertonmedola"
+          target="_blank"
+          rel="noopener"
+          >Desenvolvido por Everton Medola</a
+        >
+      </footer>
+    </main>
+    <script src="/checkout.js"></script>
+  </body>
 </html>
