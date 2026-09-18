@@ -3,3 +3,10 @@ node_modules/
 dist/
 .env
 *.log
+
+# Impeccable skill: ephemeral build/QA artifacts, not durable design records.
+# .impeccable/surfaces/ and .impeccable/design.json ARE tracked (durable).
+.impeccable/review/
+.impeccable/build/
+.impeccable/mocks/
+.impeccable/hook.cache.json
