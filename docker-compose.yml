@@ -9,5 +9,10 @@ services:
       - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025" # SMTP, matches SMTP_HOST/SMTP_PORT in .env.example
+      - "8025:8025" # web UI, view captured emails at http://localhost:8025
 volumes:
   pgdata:
