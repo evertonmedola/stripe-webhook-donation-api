@@ -8,6 +8,7 @@ import { stripeWebhookSecretProvider } from './webhook-secret.provider';
 import { checkoutCompletedHandler } from './handlers/checkout-completed.handler';
 import { paymentFailedHandler } from './handlers/payment-failed.handler';
 import { chargeRefundedHandler } from './handlers/charge-refunded.handler';
+import { paymentIntentSucceededHandler } from './handlers/payment-intent-succeeded.handler';
 
 @Module({
   imports: [OrdersModule, AuditLogModule],
@@ -21,6 +22,7 @@ export class WebhooksModule implements OnModuleInit {
     this.webhookService.EVENT_HANDLERS['checkout.session.completed'] = checkoutCompletedHandler;
     this.webhookService.EVENT_HANDLERS['checkout.session.expired'] = paymentFailedHandler;
     this.webhookService.EVENT_HANDLERS['payment_intent.payment_failed'] = paymentFailedHandler;
+    this.webhookService.EVENT_HANDLERS['payment_intent.succeeded'] = paymentIntentSucceededHandler;
     this.webhookService.EVENT_HANDLERS['charge.refunded'] = chargeRefundedHandler;
   }
 }
