@@ -32,13 +32,18 @@ describe('EmailOutboxService', () => {
   it('sends each pending row and marks it sent', async () => {
     manager.query
       .mockResolvedValueOnce([{ id: '1', order_id: 'o1', attempts: 0 }]) // SELECT ... FOR UPDATE SKIP LOCKED
-      .mockResolvedValueOnce([{ donor_email: 'donor@example.com' }]) // SELECT donor_email
+      .mockResolvedValueOnce([{ donor_email: 'donor@example.com', amount_cents: 2000, created_at: new Date('2026-01-01T12:00:00Z') }]) // SELECT donor_email, amount_cents, created_at
       .mockResolvedValueOnce([[], 1]); // UPDATE ... SET status='sent'
     mailTransport.sendMail.mockResolvedValue(undefined);
 
     const result = await service.processPendingBatch();
 
     expect(mailTransport.sendMail).toHaveBeenCalledTimes(1);
+    const sentMail = mailTransport.sendMail.mock.calls[0][0];
+    expect(sentMail.to).toBe('donor@example.com');
+    expect(sentMail.subject).toContain('R$ 20,00');
+    expect(sentMail.html).toContain('R$ 20,00');
+    expect(sentMail.text).toContain('R$ 20,00');
     expect(result).toEqual({ sent: 1, failed: 0 });
   });
 

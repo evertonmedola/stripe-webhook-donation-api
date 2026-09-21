@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { MAIL_TRANSPORT } from './mail.provider';
+import { buildDonationConfirmationEmail } from './email-templates';
 import type { Transporter } from 'nodemailer';
 
 interface PendingRow {
@@ -40,14 +41,20 @@ export class EmailOutboxService {
       for (const row of rows) {
         try {
           const [orderRow] = await manager.query(
-            `SELECT donor_email FROM orders WHERE id = $1`,
+            `SELECT donor_email, amount_cents, created_at FROM orders WHERE id = $1`,
             [row.order_id],
           );
+          const { subject, text, html } = buildDonationConfirmationEmail({
+            amountCents: orderRow?.amount_cents ?? 0,
+            orderId: row.order_id,
+            createdAt: orderRow?.created_at ?? new Date(),
+          });
           await this.mailTransport.sendMail({
             to: orderRow?.donor_email,
             from: this.config.get<string>('SMTP_FROM'),
-            subject: 'Confirmação de doação',
-            text: 'Obrigado pela sua doação! Seu pagamento foi confirmado.',
+            subject,
+            text,
+            html,
           });
           await manager.query(
             `UPDATE email_outbox SET status = 'sent', sent_at = now() WHERE id = $1`,
