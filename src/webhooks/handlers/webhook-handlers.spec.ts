@@ -6,6 +6,7 @@ import { OrderEntity } from '../../orders/entities/order.entity';
 import { checkoutCompletedHandler } from './checkout-completed.handler';
 import { paymentFailedHandler } from './payment-failed.handler';
 import { chargeRefundedHandler } from './charge-refunded.handler';
+import { paymentIntentSucceededHandler } from './payment-intent-succeeded.handler';
 
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://payment_user:payment_pass@localhost:5434/payment_validation';
@@ -221,5 +222,96 @@ describe('webhook handlers (integration)', () => {
 
     const outboxRows = await dataSource.query('SELECT * FROM email_outbox WHERE order_id = $1', [orderId]);
     expect(outboxRows).toHaveLength(0);
+  });
+
+  it('paymentIntentSucceededHandler transitions pending -> paid and queues the confirmation email when it wins the race against checkout.session.completed', async () => {
+    const orderId = await insertOrder({ sessionId: 'cs_pi_wins_race' });
+    const qr = dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+
+    const event = fakeEvent('payment_intent.succeeded', {
+      id: 'pi_wins_race',
+      amount_received: 5000,
+      receipt_email: 'donor4@example.com',
+      metadata: { orderId },
+    });
+    const result = await paymentIntentSucceededHandler(qr, event);
+    await qr.commitTransaction();
+    await qr.release();
+
+    expect(result.orderId).toBe(orderId);
+    const [row] = await dataSource.query(
+      'SELECT status, donor_email, stripe_payment_intent_id, amount_cents FROM orders WHERE id = $1',
+      [orderId],
+    );
+    expect(row.status).toBe('paid');
+    expect(row.donor_email).toBe('donor4@example.com');
+    expect(row.stripe_payment_intent_id).toBe('pi_wins_race');
+    expect(row.amount_cents).toBe(5000);
+
+    const outboxRows = await dataSource.query('SELECT * FROM email_outbox WHERE order_id = $1', [orderId]);
+    expect(outboxRows).toHaveLength(1);
+  });
+
+  it('paymentIntentSucceededHandler no-ops when the PaymentIntent carries no orderId metadata', async () => {
+    const orderId = await insertOrder({ sessionId: 'cs_pi_no_metadata' });
+    const qr = dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+
+    const event = fakeEvent('payment_intent.succeeded', {
+      id: 'pi_no_metadata',
+      amount_received: 5000,
+      metadata: {},
+    });
+    const result = await paymentIntentSucceededHandler(qr, event);
+    await qr.commitTransaction();
+    await qr.release();
+
+    expect(result.orderId).toBeNull();
+    const [row] = await dataSource.query('SELECT status FROM orders WHERE id = $1', [orderId]);
+    expect(row.status).toBe('pending');
+  });
+
+  it('paymentIntentSucceededHandler is a no-op (and does not double-queue an email) when checkout.session.completed already won the race', async () => {
+    const orderId = await insertOrder({ sessionId: 'cs_pi_loses_race' });
+    const qr1 = dataSource.createQueryRunner();
+    await qr1.connect();
+    await qr1.startTransaction();
+    await checkoutCompletedHandler(
+      qr1,
+      fakeEvent('checkout.session.completed', {
+        id: 'cs_pi_loses_race',
+        amount_total: 5000,
+        payment_intent: 'pi_loses_race',
+        customer_details: { email: 'donor5@example.com' },
+      }),
+    );
+    await qr1.commitTransaction();
+    await qr1.release();
+
+    const qr2 = dataSource.createQueryRunner();
+    await qr2.connect();
+    await qr2.startTransaction();
+    const result = await paymentIntentSucceededHandler(
+      qr2,
+      fakeEvent('payment_intent.succeeded', {
+        id: 'pi_loses_race',
+        amount_received: 5000,
+        receipt_email: 'donor5@example.com',
+        metadata: { orderId },
+      }),
+    );
+    await qr2.commitTransaction();
+    await qr2.release();
+
+    // The order is already identified via metadata.orderId even though the
+    // guarded UPDATE affects 0 rows (order already paid) — mirrors
+    // checkoutCompletedHandler's "not pending" test above, which likewise
+    // returns the matched order's id rather than null.
+    expect(result.orderId).toBe(orderId);
+    const outboxRows = await dataSource.query('SELECT * FROM email_outbox WHERE order_id = $1', [orderId]);
+    expect(outboxRows).toHaveLength(1);
   });
 });

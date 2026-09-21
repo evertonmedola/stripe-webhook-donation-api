@@ -52,6 +52,16 @@ describe('CheckoutService', () => {
     );
   });
 
+  it('stamps the order id onto payment_intent_data.metadata, not just the session, so payment_intent.succeeded can correlate the order independently of checkout.session.completed', async () => {
+    await service.createSession({ productType: 'fixed', priceId: 'price_allowed_1' });
+    expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: { orderId: 'order_1' },
+        payment_intent_data: { metadata: { orderId: 'order_1' } },
+      }),
+    );
+  });
+
   it('rejects a fixed priceId not in the allowlist', async () => {
     await expect(
       service.createSession({ productType: 'fixed', priceId: 'price_not_allowed' }),

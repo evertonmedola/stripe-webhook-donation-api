@@ -37,6 +37,7 @@ export class CheckoutService {
       success_url: `${frontendOrigin}/success.html?order=${order.id}`,
       cancel_url: `${frontendOrigin}/cancel.html`,
       metadata: { orderId: order.id },
+      payment_intent_data: { metadata: { orderId: order.id } },
     });
 
     if (!session.url) {
