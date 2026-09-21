@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "arial",
+        "files": [
+          "src/outbox/email-templates.ts"
+        ],
+        "createdAt": "2026-09-21T19:07:44.379Z",
+        "reason": "Email clients strip web fonts; Arial/Helvetica is the safe fallback stack for HTML email, unrelated to the site's Google Fonts"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "courier new",
+        "files": [
+          "src/outbox/email-templates.ts"
+        ],
+        "createdAt": "2026-09-21T19:07:48.754Z",
+        "reason": "Monospace fallback stack for email clients (no Space Mono support in most mail clients)"
+      }
+    ]
+  }
+}
