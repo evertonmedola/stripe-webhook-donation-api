@@ -20,6 +20,15 @@
         ],
         "createdAt": "2026-09-21T19:07:48.754Z",
         "reason": "Monospace fallback stack for email clients (no Space Mono support in most mail clients)"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "files": [
+          "src/outbox/email-templates.ts"
+        ],
+        "createdAt": "2026-09-21T19:09:59.851Z",
+        "reason": "Email HTML requires a universally-supported font stack; Arial is the safe default here, not a design choice competing with the site's typography"
       }
     ]
   }
