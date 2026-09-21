@@ -8,8 +8,12 @@ import { paymentFailedHandler } from './payment-failed.handler';
 import { chargeRefundedHandler } from './charge-refunded.handler';
 import { paymentIntentSucceededHandler } from './payment-intent-succeeded.handler';
 
+// Deliberately a distinct database name from the dev DB in docker-compose.yml
+// (payment_validation): this suite's afterEach/afterAll issue DELETE FROM
+// orders, and once ran against the dev DB by accident (no TEST_DATABASE_URL
+// set), wiping real manually-created test data mid-session.
 const TEST_DB_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://payment_user:payment_pass@localhost:5434/payment_validation';
+  process.env.TEST_DATABASE_URL ?? 'postgres://payment_user:payment_pass@localhost:5434/payment_validation_test';
 
 function fakeEvent(type: string, object: Record<string, unknown>): Stripe.Event {
   return { id: 'evt_x', type, data: { object } } as unknown as Stripe.Event;
