@@ -4,8 +4,12 @@ import { DataSource } from 'typeorm';
 import { OrderEntity } from './entities/order.entity';
 import { OrdersService } from './orders.service';
 
+// Deliberately a distinct database name from the dev DB in docker-compose.yml
+// (payment_validation): this suite's afterEach/afterAll issue DELETE FROM
+// orders, and once ran against the dev DB by accident (no TEST_DATABASE_URL
+// set), wiping real manually-created test data mid-session.
 const TEST_DB_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://payment_user:payment_pass@localhost:5434/payment_validation';
+  process.env.TEST_DATABASE_URL ?? 'postgres://payment_user:payment_pass@localhost:5434/payment_validation_test';
 
 describe('OrdersService (integration)', () => {
   let dataSource: DataSource;
