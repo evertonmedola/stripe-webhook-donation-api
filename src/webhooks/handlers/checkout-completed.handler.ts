@@ -33,6 +33,18 @@ export const checkoutCompletedHandler: EventHandler = async (queryRunner: QueryR
       `INSERT INTO email_outbox (order_id, status) VALUES ($1, 'pending')`,
       [orderRow.id],
     );
+  } else if (donorEmail) {
+    // payment_intent.succeeded can win the pending -> paid race before this
+    // event arrives. Its PaymentIntent.receipt_email is null for Checkout
+    // Sessions (Stripe never populates it there), so the order ends up
+    // 'paid' with no donor_email. Backfill it here from customer_details,
+    // which Checkout always collects. The email_outbox row that
+    // paymentIntentSucceededHandler already queued will pick this up on its
+    // next retry (it reads donor_email live, not from an insert-time copy).
+    await queryRunner.query(
+      `UPDATE orders SET donor_email = $2, updated_at = now() WHERE id = $1 AND status = 'paid' AND donor_email IS NULL`,
+      [orderRow.id, donorEmail],
+    );
   }
 
   return { orderId: orderRow.id as string };

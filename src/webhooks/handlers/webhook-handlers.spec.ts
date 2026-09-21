@@ -228,6 +228,54 @@ describe('webhook handlers (integration)', () => {
     expect(outboxRows).toHaveLength(0);
   });
 
+  it('checkoutCompletedHandler backfills donor_email when payment_intent.succeeded already won the race with a null receipt_email', async () => {
+    const orderId = await insertOrder({ sessionId: 'cs_pi_won_no_email' });
+    const qr1 = dataSource.createQueryRunner();
+    await qr1.connect();
+    await qr1.startTransaction();
+    await paymentIntentSucceededHandler(
+      qr1,
+      fakeEvent('payment_intent.succeeded', {
+        id: 'pi_won_no_email',
+        amount_received: 5000,
+        receipt_email: null,
+        metadata: { orderId },
+      }),
+    );
+    await qr1.commitTransaction();
+    await qr1.release();
+
+    const [preBackfillRow] = await dataSource.query('SELECT status, donor_email FROM orders WHERE id = $1', [
+      orderId,
+    ]);
+    expect(preBackfillRow.status).toBe('paid');
+    expect(preBackfillRow.donor_email).toBeNull();
+
+    const qr2 = dataSource.createQueryRunner();
+    await qr2.connect();
+    await qr2.startTransaction();
+    await checkoutCompletedHandler(
+      qr2,
+      fakeEvent('checkout.session.completed', {
+        id: 'cs_pi_won_no_email',
+        amount_total: 5000,
+        payment_intent: 'pi_won_no_email',
+        customer_details: { email: 'donor6@example.com' },
+      }),
+    );
+    await qr2.commitTransaction();
+    await qr2.release();
+
+    const [row] = await dataSource.query('SELECT status, donor_email FROM orders WHERE id = $1', [orderId]);
+    expect(row.status).toBe('paid');
+    expect(row.donor_email).toBe('donor6@example.com');
+
+    // No second outbox row: the one paymentIntentSucceededHandler already queued
+    // will pick up the backfilled donor_email on its next retry.
+    const outboxRows = await dataSource.query('SELECT * FROM email_outbox WHERE order_id = $1', [orderId]);
+    expect(outboxRows).toHaveLength(1);
+  });
+
   it('paymentIntentSucceededHandler transitions pending -> paid and queues the confirmation email when it wins the race against checkout.session.completed', async () => {
     const orderId = await insertOrder({ sessionId: 'cs_pi_wins_race' });
     const qr = dataSource.createQueryRunner();
