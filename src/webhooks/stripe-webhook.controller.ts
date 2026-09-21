@@ -22,7 +22,15 @@ export class StripeWebhookController {
     if (!req.rawBody) {
       throw new BadRequestException('Missing request body');
     }
-    await this.webhookService.handleRawEvent(req.rawBody, signature);
+    const { outcome } = await this.webhookService.handleRawEvent(req.rawBody, signature);
+    // A rejected signature must surface as a 4xx: returning 200 here would
+    // tell Stripe the event was acknowledged, so a genuinely failed
+    // delivery (misconfigured secret, tampered payload) would never be
+    // retried and would look identical to a normal, successfully-processed
+    // request in Stripe's dashboard.
+    if (outcome === 'rejected') {
+      throw new BadRequestException('Invalid signature');
+    }
     return { received: true };
   }
 }
