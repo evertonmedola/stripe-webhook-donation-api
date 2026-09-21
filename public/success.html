@@ -1,28 +1,40 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="referrer" content="no-referrer" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Doação em processamento</title>
-  <link rel="stylesheet" href="/style.css" />
-</head>
-<body class="status-page">
-  <main class="panel">
-    <div class="counter" id="amount-counter" role="status" aria-label="Valor da doação">
-      <span class="counter-currency">R$</span>
-      <div class="counter-digits" id="counter-digits"></div>
-      <span class="rivet-bl" aria-hidden="true"></span>
-      <span class="rivet-br" aria-hidden="true"></span>
-    </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Doação em processamento</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="status-page">
+    <main class="panel">
+      <div
+        class="counter"
+        id="amount-counter"
+        role="status"
+        aria-label="Valor da doação"
+      >
+        <span class="counter-currency">R$</span>
+        <div class="counter-digits" id="counter-digits"></div>
+        <span class="rivet-bl" aria-hidden="true"></span>
+        <span class="rivet-br" aria-hidden="true"></span>
+      </div>
 
-    <h1>Obrigado!</h1>
-    <p id="status-message" role="status" aria-live="polite">Confirmando seu pagamento...</p>
+      <h1>Obrigado!</h1>
+      <p id="status-message" role="status" aria-live="polite">
+        Confirmando seu pagamento...
+      </p>
 
-    <footer class="credit">
-      <a href="https://github.com/evertonmedola" target="_blank" rel="noopener">Desenvolvido por Everton Medola</a>
-    </footer>
-  </main>
-  <script src="/status-poll.js"></script>
-</body>
+      <footer class="credit">
+        <a
+          href="https://github.com/evertonmedola"
+          target="_blank"
+          rel="noopener"
+          >Desenvolvido por Everton Medola</a
+        >
+      </footer>
+    </main>
+    <script src="status-poll.js"></script>
+  </body>
 </html>
