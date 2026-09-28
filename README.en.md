@@ -64,6 +64,7 @@ Paste the `whsec_...` it prints into `STRIPE_WEBHOOK_SECRET`, in `.env`.
 | Variable | Description |
 |---|---|
 | `PORT` | HTTP port (defaults to 3000) |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Local Postgres credentials, read by `docker-compose.yml`. Must match the ones embedded in `DATABASE_URL`/`TEST_DATABASE_URL` |
 | `DATABASE_URL` | Postgres connection string |
 | `TEST_DATABASE_URL` | Separate database for the integration tests. Never point it at the same database as `DATABASE_URL`: the tests run `DELETE FROM orders` |
 | `STRIPE_SECRET_KEY` | Stripe secret key (test mode) |
