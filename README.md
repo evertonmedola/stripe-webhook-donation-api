@@ -4,6 +4,8 @@ API de doações construída para testar, na prática, uma integração séria c
 
 O frontend é vanilla de propósito, porque o ponto aqui é o backend de pagamento. Mesmo assim tem identidade própria: o valor da doação aparece como um contador mecânico, tipo odômetro, não como um número dentro de um card.
 
+https://github.com/user-attachments/assets/4d64878b-1de2-49a5-aeca-c24b3b4ec2e2
+
 ## Como funciona
 
 O visitante escolhe um valor fixo (R$ 20,00) ou digita um valor livre entre R$ 5,00 e R$ 1.000.000,00. O backend cria o pedido como `pending`, abre uma Checkout Session no Stripe e redireciona. O Stripe devolve o resultado por webhook, e a partir daí o pedido só pode seguir um destes caminhos:
