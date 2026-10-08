@@ -4,7 +4,9 @@ API de doações construída para testar, na prática, uma integração séria c
 
 O frontend é vanilla de propósito, porque o ponto aqui é o backend de pagamento. Mesmo assim tem identidade própria: o valor da doação aparece como um contador mecânico, tipo odômetro, não como um número dentro de um card.
 
-https://github.com/user-attachments/assets/4d64878b-1de2-49a5-aeca-c24b3b4ec2e2
+
+https://github.com/user-attachments/assets/32b4837c-401b-4545-b7a7-c484ead6cbd3
+
 
 ## Como funciona
 
