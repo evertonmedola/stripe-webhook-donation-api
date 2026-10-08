@@ -4,6 +4,8 @@ A donation API built to test a serious Stripe integration in practice: verified 
 
 The frontend is vanilla on purpose, because the point here is the payment backend. It still has its own identity: the donation amount shows up as a mechanical counter, like an odometer, not a number inside a card.
 
+https://github.com/user-attachments/assets/77c35cb7-7040-44ab-8e65-ae8ecfb92e6e
+
 ## How it works
 
 The visitor picks a fixed amount (R$ 20.00) or types a custom one, between R$ 5.00 and R$ 1,000,000.00. The backend creates the order as `pending`, opens a Checkout Session on Stripe, and redirects. Stripe reports the result via webhook, and from there the order can only follow one of these paths:
